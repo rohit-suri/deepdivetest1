@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prism AI Deep Dive — Knowledge Check</title>
+<style>
+  :root{
+    --navy:#0A2540; --blue:#0B5FFF; --ice:#EAF1FF; --frost:#F4F8FF;
+    --sky:#CADCFC; --peri:#8FB4F0; --hair:#D5E2F5; --mid:#1B4DA8;
+    --ink:#1A2B3C; --slate:#5B6B7C; --muted:#9FB6D9;
+    --ok:#00A88F; --okbg:#E4F7F3; --bad:#C0392B; --badbg:#FBEDEB;
+    --font:"Calibri","Carlito","Segoe UI",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fff;color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5}
+  .wrap{max-width:860px;margin:0 auto;padding:0 20px 80px}
+
+  header{background:var(--navy);color:#fff;padding:34px 0 30px;margin-bottom:0}
+  header .wrap{padding-bottom:0}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:2.5px;color:var(--peri);margin:0 0 10px}
+  h1{margin:0;font-size:34px;font-weight:700;letter-spacing:.5px}
+  .sub{margin:10px 0 0;font-size:16px;color:var(--sky)}
+
+  .bar{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--hair);
+       padding:12px 0;margin-bottom:26px}
+  .bar .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-bottom:0}
+  .chip{font-size:14px;font-weight:700;color:var(--navy);background:var(--ice);
+        border-radius:8px;padding:7px 13px;white-space:nowrap}
+  .chip.time{color:#fff;background:var(--blue)}
+  .chip.time.warn{background:var(--bad)}
+  .prog{flex:1;min-width:120px;height:8px;background:var(--hair);border-radius:99px;overflow:hidden}
+  .prog i{display:block;height:100%;width:0;background:var(--blue);transition:width .25s}
+
+  .card{background:var(--frost);border-radius:12px;padding:22px 22px 20px;margin-bottom:18px}
+  .card.ice{background:var(--ice)}
+  .qhead{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+  .qnum{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:var(--blue);color:#fff;
+        font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .tag{font-size:11px;font-weight:700;letter-spacing:1.3px;color:var(--slate);text-transform:uppercase}
+  .q{font-size:17px;font-weight:700;color:var(--navy);margin:0 0 14px;line-height:1.4}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{display:flex;align-items:flex-start;gap:11px;width:100%;text-align:left;cursor:pointer;
+       background:#fff;border:1px solid var(--hair);border-radius:9px;padding:12px 14px;
+       font:inherit;font-size:15px;color:var(--ink);transition:border-color .12s,background .12s}
+  .opt:hover:not(:disabled){border-color:var(--blue);background:#fff}
+  .opt:disabled{cursor:default}
+  .opt .k{flex:0 0 22px;height:22px;border-radius:5px;background:var(--ice);color:var(--navy);
+          font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .opt.right{border-color:var(--ok);background:var(--okbg)}
+  .opt.right .k{background:var(--ok);color:#fff}
+  .opt.wrong{border-color:var(--bad);background:var(--badbg)}
+  .opt.wrong .k{background:var(--bad);color:#fff}
+  .opt.dim{opacity:.55}
+
+  .fb{margin-top:14px;padding:13px 15px;border-radius:9px;font-size:14.5px;display:none}
+  .fb.show{display:block}
+  .fb.right{background:var(--okbg);color:#0b5f52}
+  .fb.wrong{background:var(--badbg);color:#8d2b20}
+  .fb b{display:block;margin-bottom:3px;font-size:14px}
+
+  .btn{font:inherit;font-size:15px;font-weight:700;border:0;border-radius:8px;padding:13px 26px;
+       cursor:pointer;background:var(--blue);color:#fff}
+  .btn:hover{background:#0a52dd}
+  .btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--hair)}
+
+  .gate{background:var(--ice);border-radius:12px;padding:28px;margin:30px 0}
+  .gate h2{margin:0 0 12px;font-size:22px;color:var(--navy)}
+  .gate ul{margin:0 0 20px;padding-left:20px;color:var(--ink);font-size:15px}
+  .gate li{margin-bottom:7px}
+
+  #quiz{display:none}
+  #results{display:none;margin:30px 0}
+  .score{background:var(--navy);color:#fff;border-radius:12px;padding:30px;text-align:center;margin-bottom:18px}
+  .score .big{font-size:58px;font-weight:700;line-height:1.05}
+  .score .pct{font-size:17px;color:var(--sky);margin-top:6px}
+  .score .verdict{font-size:16px;color:#fff;margin-top:14px;font-weight:700}
+  .brk{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+  .brk div{background:var(--frost);border-radius:10px;padding:16px}
+  .brk .n{font-size:26px;font-weight:700;color:var(--blue)}
+  .brk .l{font-size:13.5px;color:var(--ink);margin-top:3px}
+  .missed{background:var(--frost);border-radius:12px;padding:20px 22px}
+  .missed h3{margin:0 0 12px;font-size:17px;color:var(--navy)}
+  .missed li{margin-bottom:9px;font-size:14.5px}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--hair);
+         font-size:12.5px;color:var(--slate);font-style:italic}
+  @media (max-width:600px){h1{font-size:26px}.card{padding:18px 16px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <p class="eyebrow">PRISM AI DEEP DIVE</p>
+    <h1>Knowledge check</h1>
+    <p class="sub">Sessions 1, 2 and 4 &mdash; LLM basics, tool calling &amp; skills, agentic AI</p>
+  </div>
+</header>
+
+<div class="bar" id="bar" style="display:none">
+  <div class="wrap">
+    <span class="chip time" id="timer">30:00</span>
+    <span class="chip" id="answered">0 of 24 answered</span>
+    <span class="chip" id="scorechip">0 correct</span>
+    <span class="prog"><i id="progbar"></i></span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="gate" id="gate">
+    <h2>Before you start</h2>
+    <ul>
+      <li><b>24 questions, 30 minutes.</b> That is about 75 seconds each &mdash; enough to think, not enough to look things up.</li>
+      <li><b>One correct answer per question.</b> You get the result and a short explanation the moment you choose, so this is a learning tool as much as a test.</li>
+      <li><b>You cannot change an answer once selected.</b> Pick deliberately.</li>
+      <li><b>The timer is a guide.</b> When it reaches zero the test closes and scores what you have done.</li>
+    </ul>
+    <button class="btn" id="startBtn">Start the test</button>
+  </div>
+
+  <div id="quiz"></div>
+
+  <div id="results">
+    <div class="score">
+      <div class="big" id="finalScore">0 / 24</div>
+      <div class="pct" id="finalPct">0%</div>
+      <div class="verdict" id="verdict"></div>
+    </div>
+    <div class="brk" id="breakdown"></div>
+    <div class="missed" id="missed"></div>
+    <p style="margin-top:22px"><button class="btn ghost" id="againBtn">Take it again</button></p>
+  </div>
+
+  <footer>
+    Prism AI Deep Dive series &mdash; internal knowledge check. Questions are drawn from the Session 1, 2 and 4 decks.
+  </footer>
+</div>
+
+<script>
+var Q = [
+ {s:1,q:"An LLM produces its answer by:",
+  o:["Looking up facts in a database inside the model","Predicting the most likely next token, over and over","Searching the web at the moment you ask","Retrieving the closest matching text from its training data"],
+  a:1,w:"There is no database and no retrieval step. Facts are a side effect of good prediction, which is exactly why the model can invent one just as confidently."},
+ {s:1,q:"Why did attention (2017) unlock the models we have today?",
+  o:["It gave models access to live information","It let training run in parallel, so more compute produced better models","It removed the need for large training datasets","It made models much smaller and cheaper to run"],
+  a:1,w:"Before attention, word 500 could not be trained before word 499. Parallelism is what made spending more on compute actually work."},
+ {s:1,q:"You send a 40-page contract and ask for a one-line summary. Compared with asking a genuinely hard question in ten words, this is:",
+  o:["Cheaper, because the question is simple","About the same, because the output is short either way","Free, because input tokens are not billed","More expensive, because cost tracks length rather than difficulty"],
+  a:3,w:"You pay per token, in and out. Length drives the bill; difficulty does not."},
+ {s:1,q:"A chat assistant appears to remember your earlier conversation. Why?",
+  o:["The context window persists on the provider's servers","The model stores your history between calls","Your application re-sends the whole conversation every time","The model was fine-tuned on your past chats"],
+  a:2,w:"Nothing persists between calls. The feeling of memory is your application resending history."},
+ {s:1,q:"Setting temperature to 0 gives you:",
+  o:["A more creative answer","Repeatable output for the same input","A faster response","A more accurate answer"],
+  a:1,w:"Temperature only reshapes the probability list. It is not a quality dial. Repeatability is why it is the default for anything an agent acts on."},
+ {s:1,q:"In a long context window, models reliably:",
+  o:["Weight every position equally","Use the start and the end, and skim the middle","Read only the final thousand tokens","Attend most carefully to the middle"],
+  a:1,w:"This is the lost-in-the-middle effect. Put instructions first and the question last."},
+ {s:1,q:"Which training stage turns a model that rambles into one that answers?",
+  o:["Fine-tuning on question-and-answer examples","Tokenisation","Quantisation","Pre-training on internet text"],
+  a:0,w:"Pre-training produces raw knowledge with no manners. Fine-tuning on good examples is what makes it behave like an assistant."},
+ {s:1,q:"Why do models struggle with “how many r's are in strawberry?”",
+  o:["It needs a tool call to answer","Counting is a known weakness of neural networks","The word is rare in training data","The model sees tokens, not individual letters"],
+  a:3,w:"Text is split into chunks before the model ever sees it. It has no view of individual letters."},
+ {s:2,q:"When a model “calls a tool”, what actually happens?",
+  o:["The model executes the function itself","The model opens a network connection to the API","The tool runs inside the model's context window","The model emits a structured request and your code decides whether to run it"],
+  a:3,w:"The model never executes anything. It asks; your code decides. That single fact is the entire security surface."},
+ {s:2,q:"Which part of a tool definition does most of the work?",
+  o:["The schema version","The name","The description, because it is a prompt","The return type"],
+  a:2,w:"Every word in the description shapes when the model reaches for the tool, and when it does not. It is closer to product copywriting than API documentation."},
+ {s:2,q:"A task that takes five tool calls costs roughly:",
+  o:["Far more than five times, because each turn re-sends everything before it","Less than five times, because of caching","Five times a single call","The same as a single call"],
+  a:0,w:"Turn five re-sends turns one to four. Total cost grows with roughly the square of the step count, not linearly."},
+ {s:2,q:"You define twenty tools but a request only uses two. The other eighteen:",
+  o:["Improve selection accuracy","Cost nothing","Are billed on every single turn","Cost only on the first turn"],
+  a:2,w:"Definitions are part of every request, so they are billed every round trip. A longer menu also measurably hurts which tool gets picked."},
+ {s:2,q:"Which tool failure is the most dangerous in production?",
+  o:["The tool fails and the model reports the task as complete anyway","The model picks a slightly less suitable tool","The model invents a tool that does not exist","The model passes a wrong argument"],
+  a:0,w:"Every log looks normal except the outcome. An invented tool is simply rejected by your code; silent failure produces confident fiction."},
+ {s:2,q:"How can an agent carry fifty skills without a huge context cost?",
+  o:["Only the name and description load until a skill is relevant","Skills run on separate hardware","The provider caches them","The skills are compressed"],
+  a:0,w:"Roughly eighty tokens buys the knowledge that a skill exists. The body and bundled files load only when the task actually matches."},
+ {s:2,q:"A tool is to a skill as:",
+  o:["Paid is to free","Fast is to slow","A capability is to a procedure","Closed source is to open source"],
+  a:2,w:"A tool says “you may do X”. A skill says “here is how we do X”, along with the scripts and templates to do it our way."},
+ {s:2,q:"A tool returns a 4,000-token JSON blob on every call. The main problem is:",
+  o:["The model cannot parse JSON reliably","It buries the answer and is re-sent on every subsequent turn","JSON is slower to process than plain text","It will exceed the tool schema"],
+  a:1,w:"Shape tool outputs for the model, not for the API. Return the three fields it needs, not the full response."},
+ {s:4,q:"The structural difference between an assistant and an agent is:",
+  o:["The agent has internet access","The agent has more tools available","The agent uses a larger model","The agent decides what happens next, without a human in every loop"],
+  a:3,w:"Autonomy is a dial, not a badge. The only question that matters is how many steps run before a human sees anything."},
+ {s:4,q:"In Anthropic's framing, a workflow is a system where:",
+  o:["No language model is involved at all","The model dynamically directs its own process","Code paths you defined in advance orchestrate the model and its tools","Several agents collaborate on one task"],
+  a:2,w:"In an agent the model writes the path. In a workflow you wrote it, and the model fills in the steps."},
+ {s:4,q:"You can write down every step a task requires. You should build:",
+  o:["A fine-tuned model","A multi-agent system","An autonomous agent","A workflow"],
+  a:3,w:"If you can enumerate the steps, enumerate them. You keep predictability, cost control and debuggability, and give up almost nothing real."},
+ {s:4,q:"A multi-agent system typically uses roughly how many times the tokens of an ordinary chat?",
+  o:["About 50 times","About 2 times","About 5 times","About 15 times"],
+  a:3,w:"Anthropic's published figure for their research system. Token spend also explained most of the quality difference, so you are largely buying results with money."},
+ {s:4,q:"The hard limitation of subagents in an orchestrator-worker system is that they:",
+  o:["Share a single context window","Cannot call tools","Cannot see each other's findings","Must run one after another"],
+  a:2,w:"Work that needs mid-flight coordination gets duplicated and contradicted. Split only what is genuinely independent."},
+ {s:4,q:"Which of these is NOT a technique for making a long agent run fit in a context window?",
+  o:["Sub-agents with their own clean windows","Raising the temperature","Compaction","Structured note-taking outside the window"],
+  a:1,w:"Temperature has nothing to do with context. The other three are the standard techniques for surviving a long run."},
+ {s:4,q:"A human checkpoint should be triggered by:",
+  o:["Whether the action is reversible","How long the run has taken","How many tokens have been used","The model reporting that it is unsure"],
+  a:0,w:"The model's sense of its own certainty is not reliable enough to gate on. Gate on what the action does, because that is something you can reason about."},
+ {s:4,q:"A step ceiling on an agent should be:",
+  o:["Enforced in your own code","Set by the model provider","Skipped for prototypes, added later","Requested in the system prompt"],
+  a:0,w:"The model asks, our code decides. A limit stated in a prompt is a suggestion; a limit in code is a control."}
+];
+
+var SESSIONS = {1:"Session 1 · LLM basics",2:"Session 2 · Tool calling & skills",4:"Session 4 · Agentic AI"};
+var KEYS = ["A","B","C","D"];
+var picked = new Array(Q.length).fill(-1);
+var done = false, tick = null, left = 30*60;
+
+function el(id){return document.getElementById(id);}
+
+function build(){
+  var h = "";
+  for (var i=0;i<Q.length;i++){
+    var q = Q[i];
+    h += '<div class="card'+(i%2?' ice':'')+'" id="c'+i+'">'
+      +  '<div class="qhead"><span class="qnum">'+(i+1)+'</span>'
+      +  '<span class="tag">'+SESSIONS[q.s]+'</span></div>'
+      +  '<p class="q">'+q.q+'</p><div class="opts">';
+    for (var j=0;j<q.o.length;j++){
+      h += '<button class="opt" data-q="'+i+'" data-o="'+j+'">'
+        +  '<span class="k">'+KEYS[j]+'</span><span>'+q.o[j]+'</span></button>';
+    }
+    h += '</div><div class="fb" id="f'+i+'"></div></div>';
+  }
+  el("quiz").innerHTML = h;
+  var btns = document.querySelectorAll(".opt");
+  for (var k=0;k<btns.length;k++) btns[k].addEventListener("click", choose);
+}
+
+function choose(e){
+  if (done) return;
+  var b = e.currentTarget;
+  var qi = +b.getAttribute("data-q"), oi = +b.getAttribute("data-o");
+  if (picked[qi] !== -1) return;
+  picked[qi] = oi;
+  var q = Q[qi];
+  var correct = (oi === q.a);
+  var all = el("c"+qi).querySelectorAll(".opt");
+  for (var i=0;i<all.length;i++){
+    all[i].disabled = true;
+    var idx = +all[i].getAttribute("data-o");
+    if (idx === q.a) all[i].classList.add("right");
+    else if (idx === oi) all[i].classList.add("wrong");
+    else all[i].classList.add("dim");
+  }
+  var f = el("f"+qi);
+  f.className = "fb show " + (correct ? "right" : "wrong");
+  f.innerHTML = "<b>" + (correct ? "Correct" : "Not quite — the answer is " + KEYS[q.a] + "") + "</b>" + q.w;
+  update();
+  if (answered() === Q.length) setTimeout(finish, 700);
+}
+
+function answered(){var n=0;for(var i=0;i<picked.length;i++) if(picked[i]!==-1) n++; return n;}
+function score(){var n=0;for(var i=0;i<picked.length;i++) if(picked[i]===Q[i].a) n++; return n;}
+
+function update(){
+  var a = answered();
+  el("answered").textContent = a + " of " + Q.length + " answered";
+  el("scorechip").textContent = score() + " correct";
+  el("progbar").style.width = (a/Q.length*100) + "%";
+}
+
+function fmt(s){
+  var m = Math.floor(s/60), r = s%60;
+  return m + ":" + (r<10?"0":"") + r;
+}
+
+function startTimer(){
+  el("timer").textContent = fmt(left);
+  tick = setInterval(function(){
+    left--;
+    if (left <= 0){ left = 0; el("timer").textContent = "0:00"; clearInterval(tick); finish(); return; }
+    el("timer").textContent = fmt(left);
+    if (left <= 300) el("timer").classList.add("warn");
+  }, 1000);
+}
+
+function finish(){
+  if (done) return;
+  done = true;
+  if (tick) clearInterval(tick);
+  var btns = document.querySelectorAll(".opt");
+  for (var i=0;i<btns.length;i++) btns[i].disabled = true;
+
+  var s = score(), pct = Math.round(s/Q.length*100);
+  el("finalScore").textContent = s + " / " + Q.length;
+  el("finalPct").textContent = pct + "%";
+  var v;
+  if (pct >= 88) v = "Strong. You could present these sessions.";
+  else if (pct >= 71) v = "Solid grasp. Worth revisiting the sessions below.";
+  else if (pct >= 50) v = "The shape is there. Re-read the decks for the weaker sessions.";
+  else v = "Worth another pass through the decks before the next session.";
+  el("verdict").textContent = v;
+
+  var by = {1:[0,0],2:[0,0],4:[0,0]};
+  for (var j=0;j<Q.length;j++){
+    by[Q[j].s][1]++;
+    if (picked[j] === Q[j].a) by[Q[j].s][0]++;
+  }
+  var bh = "";
+  for (var k in by){
+    bh += '<div><div class="n">'+by[k][0]+' / '+by[k][1]+'</div>'
+       +  '<div class="l">'+SESSIONS[k]+'</div></div>';
+  }
+  el("breakdown").innerHTML = bh;
+
+  var miss = [];
+  for (var m=0;m<Q.length;m++) if (picked[m] !== Q[m].a) miss.push(m);
+  if (miss.length){
+    var mh = "<h3>Worth going back over</h3><ol>";
+    for (var n=0;n<miss.length;n++){
+      var qi = miss[n];
+      mh += "<li><b>Q"+(qi+1)+"</b> — " + Q[qi].q + "<br><span style='color:#5B6B7C'>"
+         +  SESSIONS[Q[qi].s] + "</span></li>";
+    }
+    el("missed").innerHTML = mh + "</ol>";
+  } else {
+    el("missed").innerHTML = "<h3>Nothing missed</h3><p style='margin:0'>Full marks. Go and argue with the fundamental-points slides instead.</p>";
+  }
+  el("results").style.display = "block";
+  el("results").scrollIntoView({behavior:"smooth"});
+}
+
+el("startBtn").addEventListener("click", function(){
+  el("gate").style.display = "none";
+  el("quiz").style.display = "block";
+  el("bar").style.display = "block";
+  build(); update(); startTimer();
+  window.scrollTo(0,0);
+});
+
+el("againBtn").addEventListener("click", function(){
+  picked = new Array(Q.length).fill(-1);
+  done = false; left = 30*60;
+  el("timer").classList.remove("warn");
+  el("results").style.display = "none";
+  build(); update(); startTimer();
+  window.scrollTo(0,0);
+});
+</script>
+</body>
+</html>
